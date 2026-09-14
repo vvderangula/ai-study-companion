@@ -2,7 +2,7 @@
 
 An AI-native learning workspace. Organise learning into **Spaces** and **Projects**, upload PDFs, learn with a **grounded AI Tutor** that cites pages and refuses what your materials don't cover, take **adaptive quizzes** with AI-graded open answers, and watch **concept mastery**, **growth** and **recommendations** evolve. An **Admin dashboard** exposes users, activity, AI usage/cost, evaluation results and system health.
 
-Built for the "Full Stack AI Engineer" prototype challenge (see `docs/` for architecture, AI usage, evaluation and limitations).
+Built for the "Full Stack AI Engineer" prototype challenge.
 
 ---
 
@@ -98,7 +98,37 @@ docker run -p 8000:8000 --env-file backend/.env study-api
 docker build --build-arg VITE_API_BASE_URL=https://api.example.com -t study-web ./frontend
 ```
 
-Use MongoDB Atlas for the database. Set `CORS_ORIGINS` to the frontend origin. Run `python -m scripts.seed_demo` once against the production database to create demo credentials.
+### MongoDB Atlas
+
+The application already supports MongoDB Atlas; no MongoDB code changes are required. Atlas uses a connection URI, not an API key:
+
+1. Create a free cluster at [MongoDB Atlas](https://www.mongodb.com/atlas).
+2. Create a database user and remember its username and password.
+3. In **Network Access**, add the IP ranges used by your backend host. For an initial Render deployment, `0.0.0.0/0` is the simplest option, but restrict it when your infrastructure has stable outbound IPs.
+4. Select **Connect → Drivers**, copy the SRV connection string, and replace the username, password, and database name. It will look like:
+
+```text
+mongodb+srv://<user>:<password>@<cluster>.mongodb.net/studymate?retryWrites=true&w=majority
+```
+
+5. Add it to the backend hosting service as `MONGO_URL`. Set `MONGO_DB=studymate` separately if the URI does not include the database name.
+
+Do not commit the URI. The password is part of the URI, so store it only as a secret environment variable. URL-encode special characters in the database password, for example `@` becomes `%40`.
+
+For Render, set these backend variables in the service dashboard:
+
+```text
+MONGO_URL=mongodb+srv://...
+MONGO_DB=studymate
+JWT_SECRET=<long-random-secret>
+CORS_ORIGINS=https://<your-frontend-domain>
+GROQ_API_KEY=<server-side-secret>
+GEMINI_API_KEY=<server-side-secret>
+```
+
+Set `VITE_API_BASE_URL=https://<your-backend-domain>` only on the Vercel/Netlify frontend. Never put MongoDB, JWT, Groq, or Gemini secrets in frontend variables.
+
+After deployment, check `https://<your-backend-domain>/health`. It should report `"database": true`. Then run `python -m scripts.seed_demo` once with the production environment variables to create demo credentials.
 
 ## Repository layout
 
@@ -128,13 +158,9 @@ frontend/src/
   pages/               Home, Spaces, Space, Project, Analytics, admin/*
   features/project/    Overview, Materials, Tutor, Quiz, Growth, Analytics tabs
   api/                 typed client + SSE streaming
-docs/                  ARCHITECTURE, AI_USAGE, PROMPTS, EVALUATION, LIMITATIONS
+PROMPTS.md             Claude Code prompts used to build the project
 ```
 
-## Documentation
+## Project prompts
 
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — diagram, data model, flows, decisions and trade-offs
-- [docs/AI_USAGE.md](docs/AI_USAGE.md) — AI used to build the product vs AI inside the product, prompt registry
-- [docs/PROMPTS.md](docs/PROMPTS.md) — the actual development prompts, unfiltered
-- [docs/EVALUATION.md](docs/EVALUATION.md) — evaluation approach and regression tracking
-- [docs/LIMITATIONS.md](docs/LIMITATIONS.md) — known limitations and what comes next
+- [PROMPTS.md](PROMPTS.md) — tailored Claude Code prompts used to plan, build, test and deploy the project
